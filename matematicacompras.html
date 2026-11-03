@@ -1,0 +1,206 @@
+!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="author" content="Douglas, pesquisador de jogos">
+<title>Jogo de Matemática: Plano, Áreas e Troco</title>
+<style>
+  *{box-sizing:border-box}
+  body{margin:0;font-family:Arial,Helvetica,sans-serif;background:#eef3fb;color:#1c2a44;display:flex;justify-content:center;padding:16px}
+  .box{width:100%;max-width:640px;background:#fff;border-radius:16px;box-shadow:0 6px 20px rgba(0,0,0,.12);padding:20px}
+  h1{margin:0 0 4px;font-size:1.4rem;text-align:center;color:#1d4ed8}
+  .autor{text-align:center;font-size:.85rem;color:#64748b;margin-bottom:12px}
+  .topo{display:flex;justify-content:space-between;font-weight:bold;margin-bottom:8px}
+  .barra{height:10px;background:#e2e8f0;border-radius:6px;overflow:hidden;margin-bottom:14px}
+  .barra div{height:100%;width:0;background:#22c55e;transition:width .3s}
+  .tema{display:inline-block;background:#dbeafe;color:#1e40af;border-radius:20px;padding:3px 12px;font-size:.8rem;margin-bottom:8px}
+  .pergunta{font-size:1.15rem;margin:6px 0 12px;line-height:1.4}
+  canvas{display:block;margin:0 auto 12px;border:1px solid #cbd5e1;border-radius:8px;max-width:100%}
+  .opcoes button{display:block;width:100%;text-align:left;margin:7px 0;padding:12px;font-size:1rem;border:2px solid #cbd5e1;border-radius:10px;background:#f8fafc;cursor:pointer}
+  .opcoes button:hover:not(:disabled){border-color:#3b82f6;background:#eff6ff}
+  .opcoes button.certa{background:#bbf7d0;border-color:#16a34a}
+  .opcoes button.errada{background:#fecaca;border-color:#dc2626}
+  .feedback{margin-top:10px;padding:10px;border-radius:8px;display:none;font-size:.95rem}
+  .feedback.ok{display:block;background:#dcfce7}
+  .feedback.no{display:block;background:#fee2e2}
+  .prox{margin-top:12px;width:100%;padding:12px;font-size:1rem;background:#1d4ed8;color:#fff;border:0;border-radius:10px;cursor:pointer;display:none}
+  .fim{text-align:center;display:none}
+  .fim .trofeu{font-size:4rem}
+  .fim h2{margin:6px 0}
+  .fim button{padding:12px 20px;font-size:1rem;background:#1d4ed8;color:#fff;border:0;border-radius:10px;cursor:pointer;margin-top:10px}
+</style>
+</head>
+<body>
+<div class="box">
+  <h1>🎮 Plano Cartesiano, Áreas e Troco</h1>
+  <div class="autor">Jogo criado por Douglas, pesquisador de jogos</div>
+ 
+  <div id="jogo">
+    <div class="topo"><span id="num">Pergunta 1/20</span><span id="pontos">Pontos: 0</span></div>
+    <div class="barra"><div id="prog"></div></div>
+    <span class="tema" id="tema"></span>
+    <div class="pergunta" id="pergunta"></div>
+    <canvas id="plano" width="300" height="300" style="display:none"></canvas>
+    <div class="opcoes" id="opcoes"></div>
+    <div class="feedback" id="feedback"></div>
+    <button class="prox" id="prox">Próxima ➜</button>
+  </div>
+ 
+  <div class="fim" id="fim">
+    <div class="trofeu" id="trofeu"></div>
+    <h2 id="titulo"></h2>
+    <p id="resumo"></p>
+    <button onclick="iniciar()">🔄 Jogar de novo</button>
+  </div>
+</div>
+ 
+<script>
+// Autor: Douglas, pesquisador de jogos
+// Cada pergunta: tema, enunciado, opções (a primeira é a correta), explicação e desenho opcional no plano
+const PERGUNTAS = [
+  // PLANO CARTESIANO
+  {t:"Plano Cartesiano", q:"Quais são as coordenadas do ponto A no plano?", o:["(3, 2)","(2, 3)","(-3, 2)","(3, -2)"], e:"Primeiro lemos x (horizontal) e depois y (vertical): A = (3, 2).", p:{pts:[[3,2,"A"]]}},
+  {t:"Plano Cartesiano", q:"O ponto B(-4, 3) está em qual quadrante?", o:["2º quadrante","1º quadrante","3º quadrante","4º quadrante"], e:"x negativo e y positivo: 2º quadrante.", p:{pts:[[-4,3,"B"]]}},
+  {t:"Plano Cartesiano", q:"Qual ponto está sobre o eixo x (eixo das abscissas)?", o:["(3, 0)","(0, 4)","(2, 2)","(-1, 5)"], e:"No eixo x, o valor de y é sempre 0."},
+  {t:"Plano Cartesiano", q:"Quais são as coordenadas da origem do plano cartesiano?", o:["(0, 0)","(1, 1)","(0, 1)","(1, 0)"], e:"A origem é o encontro dos eixos: (0, 0)."},
+  {t:"Plano Cartesiano", q:"O ponto C(2, -5) está em qual quadrante?", o:["4º quadrante","1º quadrante","2º quadrante","3º quadrante"], e:"x positivo e y negativo: 4º quadrante."},
+  {t:"Plano + Área", q:"O retângulo do desenho tem vértices (1,1), (5,1), (5,4) e (1,4). Qual é a sua área?", o:["12 unidades²","14 unidades²","7 unidades²","20 unidades²"], e:"Base = 5 − 1 = 4; altura = 4 − 1 = 3. Área = 4 × 3 = 12.", p:{poly:[[1,1],[5,1],[5,4],[1,4]]}},
+  // ÁREAS
+  {t:"Área das Figuras Planas", q:"Um retângulo mede 8 m de base e 5 m de altura. Qual é a área?", o:["40 m²","13 m²","26 m²","80 m²"], e:"Área do retângulo = base × altura = 8 × 5 = 40 m²."},
+  {t:"Área das Figuras Planas", q:"Um quadrado tem lado de 7 cm. Qual é a área?", o:["49 cm²","14 cm²","28 cm²","21 cm²"], e:"Área do quadrado = lado × lado = 7 × 7 = 49 cm²."},
+  {t:"Área das Figuras Planas", q:"Um triângulo tem base 10 cm e altura 6 cm. Qual é a área?", o:["30 cm²","60 cm²","16 cm²","20 cm²"], e:"Área do triângulo = (base × altura) ÷ 2 = (10 × 6) ÷ 2 = 30 cm²."},
+  {t:"Área das Figuras Planas", q:"Um paralelogramo tem base 9 m e altura 4 m. Qual é a área?", o:["36 m²","13 m²","18 m²","26 m²"], e:"Área do paralelogramo = base × altura = 9 × 4 = 36 m²."},
+  {t:"Área das Figuras Planas", q:"Um trapézio tem base maior 10 cm, base menor 6 cm e altura 4 cm. Qual é a área?", o:["32 cm²","64 cm²","24 cm²","40 cm²"], e:"Área = (B + b) × h ÷ 2 = (10 + 6) × 4 ÷ 2 = 32 cm²."},
+  {t:"Área das Figuras Planas", q:"Um losango tem diagonal maior 8 cm e diagonal menor 6 cm. Qual é a área?", o:["24 cm²","48 cm²","14 cm²","28 cm²"], e:"Área do losango = (D × d) ÷ 2 = (8 × 6) ÷ 2 = 24 cm²."},
+  // COMPRA E VENDA / TROCO
+  {t:"Compra e Venda", q:"Maria comprou 3 cadernos de R$ 12,00 cada. Quanto ela gastou no total?", o:["R$ 36,00","R$ 15,00","R$ 30,00","R$ 39,00"], e:"3 × 12 = R$ 36,00."},
+  {t:"Troco de R$ 100", q:"Pedro pagou uma compra de R$ 67,00 com uma nota de R$ 100,00. Qual foi o troco?", o:["R$ 33,00","R$ 43,00","R$ 37,00","R$ 23,00"], e:"100 − 67 = R$ 33,00."},
+  {t:"Troco de R$ 100", q:"Ana comprou produtos de R$ 38,50 e pagou com R$ 100,00. Qual foi o troco?", o:["R$ 61,50","R$ 62,50","R$ 51,50","R$ 71,50"], e:"100,00 − 38,50 = R$ 61,50."},
+  {t:"Troco de R$ 50", q:"Lucas pagou uma conta de R$ 27,00 com uma nota de R$ 50,00. Qual foi o troco?", o:["R$ 23,00","R$ 27,00","R$ 33,00","R$ 13,00"], e:"50 − 27 = R$ 23,00."},
+  {t:"Troco de R$ 50", q:"Carla comprou um lanche de R$ 18,75 e pagou com R$ 50,00. Qual foi o troco?", o:["R$ 31,25","R$ 32,25","R$ 21,25","R$ 41,25"], e:"50,00 − 18,75 = R$ 31,25."},
+  {t:"Compra e Troco de R$ 100", q:"Um cliente comprou 4 pacotes de arroz a R$ 22,00 cada e pagou com R$ 100,00. Qual foi o troco?", o:["R$ 12,00","R$ 22,00","R$ 78,00","R$ 18,00"], e:"4 × 22 = 88. Troco: 100 − 88 = R$ 12,00."},
+  {t:"Compra e Troco de R$ 50", q:"Júlia comprou 2 camisetas a R$ 15,90 cada e pagou com R$ 50,00. Qual foi o troco?", o:["R$ 18,20","R$ 19,20","R$ 28,20","R$ 31,80"], e:"2 × 15,90 = 31,80. Troco: 50,00 − 31,80 = R$ 18,20."},
+  {t:"Venda e Troco de R$ 100", q:"Um padeiro vendeu 5 bolos a R$ 14,00 cada. O cliente pagou com R$ 100,00. Qual foi o troco?", o:["R$ 30,00","R$ 70,00","R$ 20,00","R$ 36,00"], e:"5 × 14 = 70. Troco: 100 − 70 = R$ 30,00."}
+];
+ 
+const PONTOS_POR_QUESTAO = 10;
+let ordem, idx, pontos, respondeu;
+ 
+const $ = id => document.getElementById(id);
+ 
+function embaralhar(a){
+  a = a.slice();
+  for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}
+  return a;
+}
+ 
+function iniciar(){
+  ordem = embaralhar(PERGUNTAS.map((_,i)=>i));
+  idx = 0; pontos = 0;
+  $("fim").style.display="none";
+  $("jogo").style.display="block";
+  mostrar();
+}
+ 
+function desenharPlano(p){
+  const c = $("plano"), g = c.getContext("2d");
+  const N = 6, W = c.width, passo = W/(2*N+1), cx = W/2, cy = W/2;
+  const X = x => cx + x*passo, Y = y => cy - y*passo;
+  g.clearRect(0,0,W,W);
+  g.strokeStyle="#e2e8f0"; g.lineWidth=1; g.font="10px Arial"; g.fillStyle="#475569";
+  for(let i=-N;i<=N;i++){
+    g.beginPath(); g.moveTo(X(i),0); g.lineTo(X(i),W); g.stroke();
+    g.beginPath(); g.moveTo(0,Y(i)); g.lineTo(W,Y(i)); g.stroke();
+    if(i!==0){ g.fillText(i, X(i)-3, cy+12); g.fillText(i, cx+4, Y(i)+3); }
+  }
+  g.strokeStyle="#1e293b"; g.lineWidth=2;
+  g.beginPath(); g.moveTo(0,cy); g.lineTo(W,cy); g.stroke();
+  g.beginPath(); g.moveTo(cx,0); g.lineTo(cx,W); g.stroke();
+  g.font="bold 12px Arial"; g.fillStyle="#1e293b";
+  g.fillText("x", W-12, cy-6); g.fillText("y", cx+6, 12);
+  if(p.poly){
+    g.beginPath();
+    p.poly.forEach((v,i)=> i? g.lineTo(X(v[0]),Y(v[1])) : g.moveTo(X(v[0]),Y(v[1])));
+    g.closePath(); g.fillStyle="rgba(59,130,246,.3)"; g.fill();
+    g.strokeStyle="#1d4ed8"; g.lineWidth=2; g.stroke();
+    p.poly.forEach(v=>{ g.fillStyle="#dc2626"; g.beginPath(); g.arc(X(v[0]),Y(v[1]),4,0,7); g.fill(); });
+  }
+  if(p.pts){
+    p.pts.forEach(v=>{
+      g.fillStyle="#dc2626"; g.beginPath(); g.arc(X(v[0]),Y(v[1]),5,0,7); g.fill();
+      g.fillStyle="#1e293b"; g.font="bold 14px Arial"; g.fillText(v[2], X(v[0])+8, Y(v[1])-8);
+    });
+  }
+}
+ 
+function mostrar(){
+  respondeu = false;
+  const q = PERGUNTAS[ordem[idx]];
+  $("num").textContent = "Pergunta " + (idx+1) + "/" + PERGUNTAS.length;
+  $("pontos").textContent = "Pontos: " + pontos;
+  $("prog").style.width = (idx/PERGUNTAS.length*100) + "%";
+  $("tema").textContent = q.t;
+  $("pergunta").textContent = q.q;
+  const cv = $("plano");
+  if(q.p){ cv.style.display="block"; desenharPlano(q.p); } else { cv.style.display="none"; }
+  const box = $("opcoes"); box.innerHTML = "";
+  embaralhar(q.o.map((txt,i)=>({txt, certa:i===0}))).forEach(op=>{
+    const b = document.createElement("button");
+    b.textContent = op.txt;
+    b.onclick = () => responder(b, op.certa);
+    b.dataset.certa = op.certa;
+    box.appendChild(b);
+  });
+  $("feedback").className = "feedback";
+  $("prox").style.display = "none";
+}
+ 
+function responder(btn, certa){
+  if(respondeu) return;
+  respondeu = true;
+  const q = PERGUNTAS[ordem[idx]];
+  document.querySelectorAll("#opcoes button").forEach(b=>{
+    b.disabled = true;
+    if(b.dataset.certa === "true") b.classList.add("certa");
+  });
+  const fb = $("feedback");
+  if(certa){
+    pontos += PONTOS_POR_QUESTAO;
+    fb.className = "feedback ok";
+    fb.textContent = "✅ Muito bem! " + q.e;
+  } else {
+    btn.classList.add("errada");
+    fb.className = "feedback no";
+    fb.textContent = "❌ Quase! " + q.e;
+  }
+  $("pontos").textContent = "Pontos: " + pontos;
+  $("prox").style.display = "block";
+  $("prox").textContent = idx === PERGUNTAS.length-1 ? "Ver resultado 🏆" : "Próxima ➜";
+}
+ 
+$("prox").onclick = () => {
+  idx++;
+  if(idx >= PERGUNTAS.length) terminar(); else mostrar();
+};
+ 
+function terminar(){
+  $("jogo").style.display = "none";
+  $("fim").style.display = "block";
+  const total = PERGUNTAS.length * PONTOS_POR_QUESTAO;
+  const pct = pontos/total;
+  let tro, msg;
+  if(pct >= 0.9){ tro="🏆"; msg="Campeão da Matemática!"; }
+  else if(pct >= 0.7){ tro="🥈"; msg="Muito bom! Quase lá!"; }
+  else if(pct >= 0.5){ tro="🥉"; msg="Bom começo! Continue treinando."; }
+  else { tro="📘"; msg="Vamos estudar mais e tentar de novo!"; }
+  $("trofeu").textContent = tro;
+  $("titulo").textContent = msg;
+  $("resumo").textContent = "Você fez " + pontos + " de " + total + " pontos (" + Math.round(pct*100) + "%).";
+}
+ 
+iniciar();
+</script>
+</body>
+</html>
+ 
